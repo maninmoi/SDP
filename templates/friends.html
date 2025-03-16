@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Friends</title>
+{% endblock %}
+
+{% block body %}
+<div class="flex mt-5 mx-5 space-x-4">
+    <!-- Friend list -->
+    <div class="w-1/3 p-4 border-surface border border-solid rounded-lg bg-surface">
+        <div class="flex justify-center">
+            <p class="text-onsurface">Friendlist</p>
+        </div>
+        <table id="friendList" class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                <tr>
+                    <th class="px-6 py-3 bg-primary"><p class="text-onsecondary">Username</p></th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Friend list items will be added here by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pending requests -->
+    <div class="w-1/3 p-4 border-surface border border-solid rounded-lg bg-surface">
+        <div class="flex justify-center">
+            <p class="text-onsurface">Pending requests</p>
+        </div>
+        <table id="pendingRequests" class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                <tr>
+                    <th class="px-6 py-3 bg-primary"><p class="text-onsecondary">Username</p></th>
+                    <th class="px-6 py-3 bg-primary"><p class="text-onsecondary">Accept</p></th>
+                    <th class="px-6 py-3 bg-primary"><p class="text-onsecondary">Deny</p></th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Pending requests will be added here by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Send friend request -->
+    <div class="w-1/3 p-4 border-surface border border-solid rounded-lg bg-surface">
+        <div class="flex justify-center">
+            <p class="text-onsurface">Send friend request</p>
+        </div>
+        <form id="sendRequestForm">
+            <input type="text" placeholder="Friend name" name="username2" id="username2" class="border bg-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"/>
+            <button type="submit" class="border-primary border border-solid border-opacity-80 rounded-md bg-primary"><p class="text-onprimary">Send request</p></button>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const friendListTableBody = document.querySelector('#friendList tbody');
+        const pendingRequestsTableBody = document.querySelector('#pendingRequests tbody');
+        const sendRequestForm = document.querySelector('#sendRequestForm');
+    
+        let uid = sessionStorage.getItem("uid");
+        let username = sessionStorage.getItem("username");
+
+        function fetchFriends() {
+            fetch(`/friend_list/${uid}`)
+                .then(response => response.json())
+                .then(data => {
+                    friendListTableBody.innerHTML = '';
+                    data.forEach(request => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">${request.username}</td>`;
+                        friendListTableBody.appendChild(row);
+                    
+                    });
+                });
+        }
+    
+        function fetchPendingRequests() {
+            fetch(`/friend_list_pending/${uid}`)
+                .then(response => response.json())
+                .then(data => {
+                    pendingRequestsTableBody.innerHTML = '';
+                    data.forEach(request => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">${request.friend.username}</td>
+                            <td><button onclick="acceptFriendRequest('${request.friend.username}')"><i class="fas fa-check"></i></button></td>
+                            <td><button onclick="denyFriendRequest('${request.friend.username}')"><i class="fas fa-times"></i></button></td>
+                        `;
+                        pendingRequestsTableBody.appendChild(row);
+                    });
+                });
+        }
+    
+        window.acceptFriendRequest = function(username) {
+            fetch('/friend_request_accept', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({username1: username, uid2: uid})
+            }).then(() => {
+                fetchPendingRequests();  // Refresh list after accepting
+            });
+        };
+    
+        window.denyFriendRequest = function(username) {
+            fetch('/friend_request_deny', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({username1: username, uid2: uid})
+            }).then(() => {
+                fetchPendingRequests();  // Refresh list after denying
+            });
+        };
+    
+
+        sendRequestForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username2 = document.querySelector('#username2').value;
+            fetch('/friend_request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({uid1: uid, username2: username2})
+            }).then(() => {
+                alert('Friend request sent!');
+                document.querySelector('#username2').value = '';  // Clear input after sending
+            });
+        });
+    
+        // Initial fetch of data
+        fetchFriends();
+        fetchPendingRequests();
+    });
+    </script>
+    
+{% endblock %}

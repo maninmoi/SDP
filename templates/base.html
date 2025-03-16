@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css')}}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+        apiKey: "",
+        authDomain: "",
+        projectId: "",
+        storageBucket: "",
+        messagingSenderId: "",
+        appId: ""
+      };
+    
+        firebase.initializeApp(firebaseConfig);
+    
+    </script>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="bg-surface p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <ul class="flex space-x-4">
+                <li><a href="/" class="text-onsurface hover:text-onprimaryhover">Home</a></li>
+                <li><a href="/visualiser" class="text-onsurface hover:text-onprimaryhover">Visualiser</a></li>
+                <li><a href="/friends" class="text-onsurface hover:text-onprimaryhover">Friends</a></li>
+              </ul>
+              <div id="login-area" class="relative">
+                <img src="{{ url_for('static', filename='images/profile.png') }}" id="profilePicture" alt="Profile Picture" class="w-12 h-12p-1 rounded-full ring-2 ring-onsurface dark:ring-onsurface hover:ring-onprimaryhover">
+                <div id="profile-dropdown" class="absolute hidden bg-surface shadow-md rounded-md p-2 w-20 -left-1/2">
+                    <a href="/profile" class="text-onsurface hidden hover:text-onprimaryhover">Profile</a>
+                    <a href="/#" class="text-onsurface hover:text-onprimaryhover">Sign In</a>
+              </div>
+        </div>
+    </nav>
+<script>
+function updateNavbar() {
+    fetch('/get_username')
+        .then(response => response.json())
+        .then(data => {
+            var loginArea = document.querySelector('#login-area a[href="/#"]');
+            var profile = document.querySelector('#login-area a[href="/profile"]');
+
+            if (data.is_logged_in) {
+                // User is logged in - show the username and a logout link
+                loginArea.textContent = "Logout";
+                profile.classList.remove('hidden');
+                loginArea.addEventListener('click', logout);
+                //loginArea.href = '/logout'; // Change the URL here
+                sessionStorage.setItem('username', data.username);
+            } else {
+                // User is not logged in - show the login link
+                loginArea.textContent = 'Sign In';
+                loginArea.href = '/signin';
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function retrievePicture(){
+    let profilePicture = document.getElementById('profilePicture');
+    let uid = sessionStorage.getItem("uid");
+    fetch('/user_get_picture?uid=' + encodeURIComponent(uid))
+    .then(response => response.json())
+    .then(data => {
+        if (data.profile_pic) {
+            const imgElement = document.createElement('img');
+            profilePicture.src = 'data:image/png;base64,' + data.profile_pic;
+        } else {
+            console.error('Failed to load image');
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+function logout() {
+     // Clear JWT from client storage
+        sessionStorage.removeItem('access_token');
+        sessionStorage.removeItem('username');
+        sessionStorage.removeItem('uid');
+    
+        firebase.auth().signOut().then(() => {
+        console.log('User signed out.');
+        fetch('/logout', {
+            method: 'GET', 
+            credentials: 'same-origin', // include cookies
+        })
+        .then(response => {
+                window.location.href = response.url; // redirect to the 'index' page
+             })
+           .catch(error => {
+            alert(error);
+            console.error('Error:', error);
+        });
+
+        }).catch((error) => {
+            alert(error);
+            console.error('Sign out error', error);
+        });
+}
+
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update the navbar when the page loads
+            updateNavbar();
+            console.log(sessionStorage.getItem("uid"));
+            if(sessionStorage.getItem("uid")){
+                //Retrieve picture
+                retrievePicture();
+            }else{
+                //Use default
+                let profilePicture = document.getElementById('profilePicture');
+                profilePicture.src = "{{ url_for('static', filename='images/profile.png') }}";
+            }
+            // Toggle dropdown menu
+            document.getElementById('login-area').addEventListener('click', function() {
+                document.getElementById('profile-dropdown').classList.toggle('hidden');
+            });
+    });
+
+    document.addEventListener('click', function(event) {
+            var target = event.target;
+            var profileDropdown = document.getElementById('profile-dropdown');
+            var profileToggle = document.getElementById('login-area');
+            if (!profileToggle.contains(target) && !profileDropdown.contains(target)) {
+                profileDropdown.classList.add('hidden');
+            }
+        });
+    </script>
+    {% block body %}{% endblock %}
+</body>
+</html>

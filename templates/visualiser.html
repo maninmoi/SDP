@@ -1,0 +1,409 @@
+{% extends 'base.html' %}
+{% block head %}
+<title>Visualiser</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+{% endblock %}
+
+{% block body %}
+<div class="min-h-screen flex justify-center items-center bg-background">
+    <div class="flex flex-col items-center p-12 bg-surface">
+        <form action="/process" method="post">
+            <select name="dataset" id="dataset" class="w-full bg-primary text-onprimary rounded-md px-4 py-2 focus:outline-none">
+                <option value="">Select dataset</option>
+                <!-- Dataset options will be populated here dynamically -->
+            </select>
+        </form>
+        <br>
+        <div class="bg-surface">
+        <svg width="0" height="0" id="chart"></svg>
+        </div>
+        <br>
+        <div id="inputFields"></div>
+        <br>
+        <button class="hidden border rounded-md text-onprimary border-primary bg-primary hover:bg-onprimaryhover focus:outline-none focus:ring-2 focus:ring-onprimaryhover" id="sendParametersButton" onclick="sendParameters()"><p class="text-onprimary">Send</p></button>      
+    </div>
+</div>
+
+
+
+
+<script>
+//Global variables
+let datasetData = null;
+let selectedDataset = null;
+let primaryAttribute = null;
+let friendData = null;
+let userData = null;
+let sendParametersButton = document.getElementById("sendParametersButton");
+let uid = sessionStorage.getItem("uid");
+
+function drawArrow(g, highlightValue, xScale, yScale, data, label) {
+    if (highlightValue !== undefined) {
+        const arrowX = xScale(highlightValue);
+        // Calculate the height of the bar to determine where to end the arrow
+        const barHeight = data[highlightValue] ? yScale(data[highlightValue]) : yScale(0);
+        const arrowEndY = barHeight - 15; // Increase space above the bar for clarity
+
+        // Draw the shaft of the arrow shorter
+        g.append("line")
+            .attr("x1", arrowX)
+            .attr("y1", 100) // Start lower to shorten the arrow
+            .attr("x2", arrowX)
+            .attr("y2", arrowEndY) // End just above the bar
+            .attr("stroke", "#63d7c6")
+            .attr("stroke-width", 2);
+
+        // Draw a smaller arrowhead
+        g.append("path")
+            .attr("d", `M ${arrowX - 4} ${arrowEndY - 8} L ${arrowX} ${arrowEndY} L ${arrowX + 4} ${arrowEndY - 8} Z`)
+            .attr("fill", "#63d7c6");
+
+        // Add text label above the arrow
+        g.append("text")
+            .attr("x", arrowX)
+            .attr("y", arrowEndY - 120) // Adjust position to be above the arrow
+            .attr("text-anchor", "middle") // Center the text over the arrow
+            .attr("fill", "#fff") // Text color
+            .style("font-size", "12px") // Font size
+            .text(label); // Text content
+    }
+}
+
+
+// Function to bin the data into groups
+function binData(data, binSize) {
+    const bins = {};
+    data.forEach(datum => {
+        const bin = Math.floor(datum / binSize) * binSize;
+        if (!bins[bin]) {
+            bins[bin] = 0;
+        }
+        bins[bin]++;
+    });
+    return bins;
+}
+
+
+// Function to determine dynamic bin size using the Freedman-Diaconis rule
+function calculateBinSize(data) {
+    const n = data.length;
+    const iqr = d3.quantile(data, 0.75) - d3.quantile(data, 0.25);
+    const binSize = (2 * iqr) / Math.pow(n, -1/3);
+    return Math.ceil((d3.max(data) - d3.min(data)) / binSize);
+}
+
+
+// Function to visualize binned data as a histogram with dynamic x-axis range
+async function visualizeHistogram(data, dataRange, primary_attribute) {
+    d3.select("#chart").selectAll("*").remove();
+    const bins = Object.keys(data);
+    const counts = Object.values(data);
+
+    // Define the dimensions of the chart
+    const width = 700;
+    const height = 300;
+    const margin = { top: 20, right: 20, bottom: 50, left: 50 }; // Adjusted for x-axis labels
+
+    // Calculate the inner dimensions of the chart
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+
+    // Create an SVG element
+    const svg = d3.select("#chart")
+        .attr("width", width)
+        .attr("height", height)
+        .attr("class", "text-white");
+
+    // Create scales
+    const xScale = d3.scaleLinear()
+        .domain([dataRange.min, dataRange.max])
+        .range([0, innerWidth]);
+
+    const yScale = d3.scaleLinear()
+        .domain([0, d3.max(counts)])
+        .range([innerHeight, 0]);
+
+    // Create and append the bars
+    const g = svg.append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    g.selectAll("rect")
+        .data(bins)
+        .enter().append("rect")
+        .attr("x", d => xScale(+d))
+        .attr("y", d => yScale(data[d]))
+        .attr("width", (d, i) => {
+            const nextBin = bins[i + 1] || dataRange.max + dataRange.binSize;
+            return xScale(nextBin) - xScale(+d);
+        })
+        .attr("height", d => innerHeight - yScale(data[d]))
+        .attr("fill", "#b488f5"); // Apply fill color using CSS
+
+       
+        for (const key in friendData) {
+        // Check if the property value is an array
+            if (Array.isArray(friendData[key])) {
+                const array = friendData[key];
+                drawArrow(g, array[0], xScale, yScale, innerHeight, array[array.length - 1]);
+            }
+        }
+
+        for (const key in userData) {
+        // Check if the property value is an array
+            if (Array.isArray(userData[key])) {
+                const array = userData[key];
+                drawArrow(g, array[0], xScale, yScale, innerHeight, array[array.length - 1]);
+            }
+        }
+
+    // Add x-axis
+    g.append("g")
+        .attr("transform", `translate(0,${innerHeight})`)
+        .call(d3.axisBottom(xScale))
+        .attr("class", "text-white"); // Tailwind CSS class for color
+
+    // Add y-axis
+    g.append("g")
+        .call(d3.axisLeft(yScale))
+        .attr("class", "text-white"); // Tailwind CSS class for color
+
+    // Add x-axis label
+    g.append("text")
+        .attr("x", innerWidth / 2)
+        .attr("y", innerHeight + margin.top + 20) // Adjusted y position
+        .attr("text-anchor", "middle")
+        .text(primary_attribute)
+        .style("fill", "white"); // Apply text color to x-axis label
+
+    // Add y-axis label
+    g.append("text")
+        .classed('text-white', true)
+        .attr("transform", "rotate(-90)")
+        .attr("x", -innerHeight / 2)
+        .attr("y", -margin.left)
+        .attr("dy", "1em")
+        .attr("text-anchor", "middle")
+        .text("Frequency")
+        .style("fill", "white");
+}
+
+    
+// Function to find the position of a column by name
+async function findColumnPosition(columnName, columnStructureArray) {
+  for (let i = 0; i < columnStructureArray.length; i++) {
+    if (columnStructureArray[i][0] === columnName) {
+      return i;
+    }
+  }
+  return -1; // Return -1 if column name is not found
+}
+
+
+async function returnPrimaryValueArray(primary_attribute_position, datasetData){
+    let primaryValuesArray = [];
+    for (let i = 0; i < datasetData.length; i++) {
+        primaryValuesArray.push(datasetData[i][primary_attribute_position]);
+    }
+    return primaryValuesArray;
+}
+
+async function fetchDatasetStructure(datasetName) {
+        try{
+        const response = await fetch(`/dataset_structure?dataset_name=${encodeURIComponent(datasetName)}`);
+        const data = await response.json();
+        datasetStructure = data;
+        } catch (error) {
+            console.error('Error fetching dataset structure:', error);
+    }
+}
+
+
+async function fetchFriendData(datasetName) {
+    try{
+        const response = await fetch(`/dataset_data_friends?dataset_name=${encodeURIComponent(datasetName)}&uid=${encodeURIComponent(uid)}`);
+        const data = await response.json();
+        friendData = data;        
+        } catch (error) {
+            console.error('Error fetching friends data:', error);
+    }
+}
+
+async function fetchUserData(datasetName) {
+    try{
+        const response = await fetch(`/dataset_data_user?dataset_name=${encodeURIComponent(datasetName)}&uid=${encodeURIComponent(uid)}`);
+        const data = await response.json();
+        userData = data;        
+        } catch (error) {
+            console.error('Error fetching friends data:', error);
+    }
+}
+
+async function fetchDatasetData(datasetName){
+    try{
+        const response = await fetch(`/dataset_data?dataset_name=${encodeURIComponent(datasetName)}`);
+        const data = await response.json();
+        datasetData = data;
+        } catch (error) {
+            console.error('Error fetching dataset structure:', error);
+    }
+}
+
+
+function fetchParameters(datasetName) {
+    fetch('/dataset_parameters?dataset_name=' + encodeURIComponent(datasetName))
+    .then(response => response.json())
+    .then(data => {
+        createInputFields(data);
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function createInputFields(data) {
+    const container = document.getElementById('inputFields');
+    container.innerHTML = '';
+    const flexContainer = document.createElement('div');
+    flexContainer.classList.add('flex', 'flex-row', 'flex-wrap', 'bg-surface');
+    let inputOrSelect;
+
+    const primaryAttributeContainer = document.createElement('div');
+    primaryAttributeContainer.classList.add('flex', 'flex-col', 'mb-4', 'mr-4');
+
+    const primaryAttributeLabel = document.createElement('label');
+    primaryAttributeLabel.textContent = primaryAttribute;
+
+    const primaryAttributeInput = document.createElement('input');
+    primaryAttributeInput.type = 'text';
+    primaryAttributeInput.value = '';
+    primaryAttributeInput.classList.add('rounded-sm', 'px-3', 'py-1', 'text-onprimary', 'border', 'focus:outline-none', 'focus:ring-2', 'focus:ring-onprimaryhover');
+    primaryAttributeContainer.appendChild(primaryAttributeLabel);
+    primaryAttributeContainer.appendChild(primaryAttributeInput);
+    flexContainer.appendChild(primaryAttributeContainer);
+
+    data.forEach((attribute, index) => {
+        const flexItem = document.createElement('div');
+        flexItem.classList.add('flex', 'flex-col', 'mb-4', 'mr-4');
+
+        const label = document.createElement('label');
+        label.textContent = attribute['attribute_name'];
+
+        
+        if (attribute.is_number) {
+            inputOrSelect = document.createElement('input');
+            inputOrSelect.type = 'text';
+            inputOrSelect.value = '';
+            inputOrSelect.classList.add('rounded-sm', 'px-3', 'py-1', 'text-onprimary', 'border', 'focus:outline-none', 'focus:ring-2', 'focus:ring-onprimaryhover');
+        } else {
+            inputOrSelect = document.createElement('select');
+            inputOrSelect.classList.add('bg-primary', 'text-onprimary', 'rounded-md', 'px-3', 'py-1.5', 'focus:outline-none');
+            const sortedValues = attribute.selectable_values.map(optionValues => optionValues[0]).sort();
+
+            const neutralOption = document.createElement('option');
+            neutralOption.value = '';
+            neutralOption.textContent = 'Select';
+            inputOrSelect.appendChild(neutralOption);
+
+            sortedValues.forEach(value => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                inputOrSelect.appendChild(option);
+            });
+        }
+
+        flexItem.appendChild(label);
+        flexItem.appendChild(inputOrSelect);
+        flexContainer.appendChild(flexItem);
+    });
+    container.appendChild(flexContainer);
+}
+
+
+function sendParameters() {
+    const inputs = document.querySelectorAll('#inputFields input[type="text"]');
+    const selects = document.querySelectorAll('#inputFields select');
+    const data = {};
+
+    // Gather data from input fields
+    inputs.forEach(input => {
+        const attributeName = input.previousElementSibling.textContent.trim();
+        const value = input.value;
+        data[attributeName] = value;
+    });
+
+    // Gather data from select dropdowns
+    selects.forEach(select => {
+        const attributeName = select.previousElementSibling.textContent.trim();
+        const selectedValue = select.value;
+        data[attributeName] = selectedValue;
+    });
+
+    fetch('/dataset_user_update', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({selectedDataset: selectedDataset,
+            data: data})
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(responseData => {
+        console.log('Response from Flask:', responseData);
+        alert(responseData);
+        // Handle the response from the Flask endpoint if needed
+    })
+    .catch(error => {
+        console.error('Error sending data to Flask:', error);
+    });
+}
+
+
+
+    // Fetch dataset names from the server and populate the select dropdown
+    fetch('/datasets')
+    .then(response => response.json())
+    .then(data => {
+        const datasetSelect = document.getElementById('dataset');
+        data.datasets.forEach(dataset => {
+            const option = document.createElement('option');
+            option.value = dataset.name; 
+            option.textContent = dataset.name; 
+            datasetSelect.appendChild(option);
+        });
+
+        // Add event listener to the select dropdown
+
+        datasetSelect.addEventListener('change', async function(event) {
+            selectedDataset = event.target.value;
+            if(selectedDataset == ""){
+                return;
+            }
+            sendParametersButton.classList.remove('hidden'); //Shows the button to submit parameters
+
+            // Create an array to hold the primary_attribute values
+            primaryAttribute = data.datasets.find(dataset => dataset.name === selectedDataset)?.primary_attribute || [];
+
+            // Call visualizeDataset function with the selected dataset name            
+            await fetchDatasetStructure(selectedDataset);
+            await fetchDatasetData(selectedDataset);
+            await fetchFriendData(selectedDataset);
+            await fetchUserData(selectedDataset);
+            const primary_attribute_position = await findColumnPosition(primaryAttribute, datasetStructure.structure);
+            const data_vis_ready = await returnPrimaryValueArray(primary_attribute_position, datasetData.data);
+            const binSize = calculateBinSize(data_vis_ready);
+            const binnedData = binData(data_vis_ready, binSize);
+            const dataRange = { min: d3.min(data_vis_ready), max: d3.max(data_vis_ready), binSize: binSize };
+
+            await visualizeHistogram(binnedData, dataRange, primaryAttribute);
+            
+            fetchParameters(selectedDataset);
+
+        });
+    })
+    .catch(error => console.error('Error fetching dataset names:', error));
+</script>
+{% endblock %}

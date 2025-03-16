@@ -1,0 +1,83 @@
+[
+    {
+        "name": "imyjoshua/average-time-spent-by-a-user-on-social-media",
+        "primary_attribute": "time_spent",
+        "other_attributes": [
+             {
+                "attribute_name": "age",
+                "is_number": true
+              },
+              {
+                "attribute_name": "gender",
+                "is_number": false
+              },
+              {
+                "attribute_name": "platform",
+                "is_number": false
+              },
+              {
+                "attribute_name": "interests",
+                "is_number": false
+              },
+              {
+                "attribute_name": "location",
+                "is_number": false
+              },
+              {
+                "attribute_name": "income",
+                "is_number": true
+              }
+            ]
+    },
+    {
+        "name": "hummaamqaasim/jobs-in-data",
+        "primary_attribute": "salary",
+        "other_attributes": [
+            {
+               "attribute_name": "work_year",
+               "is_number": true
+             },
+             {
+               "attribute_name": "job_category",
+               "is_number": false
+             },
+             {
+                "attribute_name": "employee_residence",
+                "is_number": false
+              },
+              {
+                "attribute_name": "experience_level",
+                "is_number": false
+              },
+              {
+                "attribute_name": "employment_type",
+                "is_number": false
+              },
+              {
+                "attribute_name": "work_setting",
+                "is_number": false
+              }
+           ]
+    },
+    {
+        "name": "dumanmesut/individual-carbon-footprint-calculation",
+        "primary_attribute": "CarbonEmission",
+        "other_attributes": [
+            {
+               "attribute_name": "Sex",
+               "is_number": false
+             }
+           ]
+    },
+
+    {
+      "name": "khushikhushikhushi/imdb-top-rated-tv-series-dataset",
+      "primary_attribute": "CarbonEmission",
+      "other_attributes": [
+          {
+             "attribute_name": "Sex",
+             "is_number": false
+           }
+         ]
+  }
+]

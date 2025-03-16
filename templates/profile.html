@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Profile</title>
+{% endblock %}
+
+{% block body %}
+<div class="container mx-auto mt-6">
+    <div class="max-w-5xl mx-auto bg-surface border rounded-lg border-surface p-6">
+        
+        <div class="flex flex-col items-center">
+        <p class="inline text-2xl">Welcome</p>
+        <p id="username" class="inline underline text-secondary text-2xl ml-2"></p>
+        </div>
+        <br>
+
+        <form id="uploadForm" class="flex flex-col items-center space-y-6 mt-4">
+            <div class="flex flex-col items-center">
+                <input class="hidden" type="file" id="profilePic" name="profilePic" accept=".jpg, .jpeg, .png" onchange="updateFileName()">
+                <label for="profilePic" class="border rounded-md text-onprimary border-primary bg-primary hover:bg-onprimaryhover focus:outline-none focus:ring-2 focus:ring-onprimaryhover cursor-pointer px-6 py-3 text-lg flex items-center">Select profile picture</label>
+                <span id="fileName" class="text-onbackground mt-4 text-lg"></span>
+            </div>
+            <button class="border rounded-md text-onprimary border-primary bg-primary hover:bg-onprimaryhover focus:outline-none focus:ring-2 focus:ring-onprimaryhover px-6 py-3 text-lg" type="button" onclick="uploadImage()">Upload profile picture</button>
+        </form>
+
+        <div class="flex flex-col items-center">
+        <button type="button" onclick="resetPassword()" class="border rounded-md text-onprimary border-primary bg-primary hover:bg-onprimaryhover focus:outline-none focus:ring-2 focus:ring-onprimaryhover px-6 py-3 text-lg mt-6">Reset password</button>  
+        <br>
+        </div>
+        <div class="flex flex-col items-center">
+        <button id="openModal" class="border rounded-md text-onprimary border-primary bg-primary hover:bg-onprimaryhover focus:outline-none focus:ring-2 focus:ring-onprimaryhover px-6 py-3 text-lg mt-4">Delete account</button>
+        </div>
+        <!-- Modal -->
+        <div id="modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
+            <!-- Modal content -->
+            <div class="relative bg-secondary top-20 mx-auto p-5 border w-96 shadow-lg rounded-md">
+                <div class="mt-3 text-center">
+                    <h3 class="text-lg leading-6 font-medium text-onsecondary">Delete Account</h3>
+                    <div class="mt-2 px-7 py-3">
+                        <p class="text-sm text-onsecondary">Are you sure you want to delete your account?</p>
+                    </div>
+                    <div class="items-center px-4 py-3 space-x-4">
+                        <button id="closeModal" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-700">No I am not sure (Cancel)</button>
+                        <button id="actionButton" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-700">Yes I am sure (Delete Account)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+let uid = sessionStorage.getItem("uid");
+let usernametext = document.getElementById("username");
+
+if(uid != null){
+    usernametext.textContent = sessionStorage.getItem("username");
+}
+
+firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                console.log("User is signed in:", user);
+            } else {
+                console.log("No user is currently signed in.");
+            }
+        });
+
+function resetPassword() {
+    const email = sessionStorage.getItem("email");
+    firebase.auth().sendPasswordResetEmail(email)
+    .then(() => {
+    // Password reset email sent successfully
+    alert("Password reset email sent!");
+  })
+  .catch((error) => {
+    // Error occurred while sending password reset email
+    console.error("Error sending password reset email:", error);
+  });
+}
+
+
+function uploadImage() {
+    const fileInput = document.getElementById('profilePic');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('Please select a file to upload.');
+        return;
+    }
+
+    // Check for MIME type
+    if (file.type !== 'image/jpeg' && file.type !== 'image/png') {
+        alert('Only JPEG and PNG files are allowed.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('profilePic', file);
+
+    fetch('/user_upload_picture', {
+        method: 'POST',
+        body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert('Image uploaded successfully!');
+    })
+    .catch(error => {
+        alert('Error uploading image');
+        console.error('Error:', error);
+    });
+}
+
+
+
+function deleteAccount() {
+    const user = firebase.auth().currentUser;
+
+    if (!user) {
+        console.error("No user is currently signed in.");
+        return;
+    }
+
+    user.delete()
+    .then(() => {
+        console.log("User account deleted in firebase!");
+
+        // API call to delete the user account from the backend
+        fetch('/user_delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ uid: user.uid }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error("Error deleting user from backend:", data.error);
+            } else {
+                console.log(data.message);
+                sessionStorage.removeItem("uid");
+                sessionStorage.removeItem("username");
+                sessionStorage.removeItem("access_token");
+                window.location.href = '/';
+            }
+        })
+        .catch((error) => {
+            console.error("Error making API call to delete user from backend:", error);
+        });
+    })
+    .catch((error) => {
+        // An error occurred while deleting the user account
+        console.error("Error deleting user account:", error);
+    });
+}
+
+function updateFileName() {
+        const input = document.getElementById('profilePic');
+        const fileName = document.getElementById('fileName');
+        if (input.files.length > 0) {
+            fileName.textContent = input.files[0].name;
+        } else {
+            fileName.textContent = '';
+        }
+    }
+
+document.getElementById('openModal').addEventListener('click', function() {
+    document.getElementById('modal').classList.remove('hidden');
+});
+
+document.getElementById('closeModal').addEventListener('click', function() {
+    document.getElementById('modal').classList.add('hidden');
+});
+
+// Function called when the "Do Action" button is clicked
+document.getElementById('actionButton').addEventListener('click', function() {
+    deleteAccount();
+    document.getElementById('modal').classList.add('hidden');
+});
+
+
+</script>
+
+{% endblock %}

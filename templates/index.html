@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>SDP Project</title>
+{% endblock %}
+
+{% block body %}
+    <div class="container mx-auto mt-6">
+      <div class="max-w-5xl mx-auto bg-surface border rounded-lg border-surface">
+        <div class="mb-8">
+          <p class="text-6xl text-onsurface mt-2 ml-3 text-center">Tutorial</p>
+        </div>
+        <!-- Users management -->
+        <div class="mb-8 relative">
+          <button class="text-3xl w-full font-bold mb-4 text-onsurface mt-2 ml-3 underline accordion-trigger hover:text-onprimaryhover" id="signupAccordionButton">Sign in/Sign up<i class="fas fa-arrow-up ml-2"></i></button>
+          <div class="accordion-content" id="signupAccordion">
+              <p class="text-xl ml-3 text-onsurface">Sign up:</p>
+              <p class="mb-4 text-onsurface ml-8">You need to create an account to use the website. Only username, email, and password are required.</p>
+              <img src="{{ url_for('static', filename='images/signup.png') }}" alt="Sign up" class="w-full rounded-lg mb-1 border border-onsurface">
+              <br>
+              <p class="text-xl ml-3 text-onsurface">Sign in:</p>
+              <p class="mb-4 text-onsurface ml-8">Enter your email and password to sign in.</p>
+              <img src="{{ url_for('static', filename='images/signin.png') }}" alt="Sign in" class="w-full rounded-lg mb-1 border border-onsurface">
+          </div>
+      </div>
+      <br>
+
+        <!-- Visualiser -->
+        <div class="mb-8 relative">
+          <button class="text-3xl w-full font-bold mb-4 text-onsurface mt-2 ml-3 underline accordion-trigger hover:text-onprimaryhover" id="visualiserButton">Visualiser<i class="fas fa-arrow-down ml-2"></i></button>
+          <div class="accordion-content hidden" id="visualiserAccordion">
+          <p class="text-xl ml-3 text-onsurface">Select a dataset:</p> 
+          <p class="mb-4 text-onsurface ml-8">Click on it to open a dropdown menu to choose datasets.</p>
+          <img src="{{ url_for('static', filename='images/select_dataset1.png') }}" alt="Select dataset" class="w-full rounded-lg mb-1 border border-onsurface">
+
+          <br>
+
+          <p class="text-xl ml-3 text-onsurface">Options:</p> 
+          <p class="mb-4 text-onsurface ml-8">Different datasets you can choose to visualise.</p>
+          <img src="{{ url_for('static', filename='images/select_dataset2.png') }}" alt="Select dataset" class="w-full rounded-lg mb-1 border border-onsurface">
+
+          <br>
+
+          <p class="text-xl ml-3 text-onsurface">Visualisation:</p> 
+          <p class="mb-4 text-onsurface ml-8">The histogram visualises the jobs-in-data dataset in this example. The arrow shows a data point of a friend.</p>
+          <img src="{{ url_for('static', filename='images/vis.png') }}" alt="Visualisation" class="w-full rounded-lg mb-1 border border-onsurface">
+
+          <br>
+
+          <p class="text-xl ml-3 text-onsurface">Parameters:</p> 
+          <p class="mb-4 text-onsurface ml-8">Datasets offer parametrs to input your own data. There are 2 different types of parameters: Textboxes and Selectfields.</p>
+          <img src="{{ url_for('static', filename='images/parameters.png') }}" alt="Parameters" class="w-full rounded-lg mb-1 border border-onsurface">
+          </div>
+        </div>
+        <br>
+        <!-- Friends -->
+        <div class="mb-8 relative">
+          <button class="text-3xl w-full font-bold mb-4 text-onsurface mt-2 ml-3 underline accordion-trigger hover:text-onprimaryhover">Friends<i class="fas fa-arrow-down ml-2"></i></button>
+          <div class="accordion-content hidden">
+          <p class="text-xl ml-3 text-onsurface">Friendlist:</p> 
+          <p class="mb-4 text-onsurface ml-8">Shows all friends of the user.</p>
+          <img src="{{ url_for('static', filename='images/friend_list.png') }}" alt="Friend list" class="w-full rounded-lg mb-1 border border-onsurface">
+
+          <br>
+
+          <p class="text-xl ml-3 text-onsurface">Friends pending:</p> 
+          <p class="mb-4 text-onsurface ml-8">Shows all pending incoming friend requests. The check allows to accept the request and the cross allows to deny it.</p>
+          <img src="{{ url_for('static', filename='images/friend_pending.png') }}" alt="Friends pending" class="w-full rounded-lg mb-1 border border-onsurface">
+
+          <br>
+
+          <p class="text-xl ml-3 text-onsurface">Friend request:</p> 
+          <p class="mb-4 text-onsurface ml-8">You can send other users friend requests. Just input there username and click send.</p>
+          <img src="{{ url_for('static', filename='images/friend_request.png') }}" alt="Friend request" class="w-full rounded-lg mb-1 border border-onsurface">
+        </div>
+    
+      </div>
+      </div>
+    </div>
+    
+  
+<script>
+    let token = sessionStorage.getItem('access_token');
+
+    const signupAccordion = document.getElementById('signupAccordion');
+    const signupAccordionButton = document.getElementById('signupAccordionButton');
+
+    const visualiserAccordion = document.getElementById('visualiserAccordion');
+    const visualiserButton = document.getElementById('visualiserButton');
+
+    if (token != null){
+      visualiserButton.querySelector('i').classList.remove('fa-arrow-down');
+      visualiserButton.querySelector('i').classList.add('fa-arrow-up');
+      visualiserAccordion.classList.remove('hidden');
+
+      signupAccordionButton.querySelector('i').classList.remove('fa-arrow-up');
+      signupAccordionButton.querySelector('i').classList.add('fa-arrow-down');
+      signupAccordion.classList.add('hidden');
+
+      visualiserButton.scrollIntoView({behavior: 'smooth', block: "start"});
+    }
+    
+    
+    //Accordion logic
+    document.addEventListener('DOMContentLoaded', function () {
+    var triggers = document.querySelectorAll('.accordion-trigger');
+
+    triggers.forEach(function (trigger) {
+    trigger.addEventListener('click', function () {
+        var content = this.nextElementSibling;
+        content.classList.toggle('hidden');
+        var icon = this.querySelector('i');
+        icon.classList.toggle('fa-arrow-down');
+        icon.classList.toggle('fa-arrow-up');
+    });
+});
+});
+
+</script>
+
+{% endblock %}
